@@ -1,0 +1,4 @@
+---
+puppeteers_grafana_alloy_loki_file_match_sync_period_default: "10s"
+puppeteers_grafana_alloy_loki_file_match_ignore_older_than_default: "0s"
+puppeteers_grafana_alloy_loki_file_match_enabled_default: false

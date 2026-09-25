@@ -1,0 +1,4 @@
+---
+puppeteers_grafana_alloy_loki_endpoint_url: null
+puppeteers_grafana_alloy_confd: "/etc/alloy/conf.d"
+puppeteers_grafana_alloy_loki_environment_extra_labels: {}

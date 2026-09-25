@@ -1,0 +1,73 @@
+// Managed by Ansible
+
+loki.write "default" {
+  endpoint {
+    url = "{{ puppeteers_grafana_alloy_loki_endpoint_url }}"
+  }
+}
+
+loki.relabel "environment" {
+    forward_to = [loki.write.default.receiver]
+
+    rule {
+        target_label = "host"
+        replacement  = "{{ ansible_fqdn }}"
+    }
+
+    {% for key, value in (puppeteers_grafana_alloy_loki_environment_extra_labels | default({})).items() %}
+    rule {
+        target_label = "{{ key }}"
+        replacement  = "{{ value }}"
+    }
+    {% endfor %}
+}
+
+loki.relabel "journal" {
+    forward_to = [loki.relabel.environment.receiver]
+
+    rule {
+        source_labels = ["__journal__systemd_unit"]
+        target_label  = "unit"
+    }
+
+    rule {
+        source_labels = ["__journal__systemd_unit"]
+        regex         = "(.*)\\.service"
+        target_label  = "service"
+    }
+
+    rule {
+        source_labels = ["__journal_syslog_identifier"]
+        target_label  = "syslog_identifier"
+    }
+}
+
+loki.source.journal "systemd" {
+    forward_to    = [loki.relabel.journal.receiver]
+    max_age       = "12h"
+    relabel_rules = loki.relabel.journal.rules
+
+    labels = {
+        source = "journal",
+    }
+}
+
+{% for log in puppeteers_grafana_alloy_loki_logs %}
+loki.source.file "{{ log.service | regex_replace('[-.]', '_')}}" {
+    forward_to = [loki.write.default.receiver]
+    targets = [
+        {
+            __path__ = "{{ log.log_dir }}/{{ log.log_pattern }}",
+            source   = "file",
+            job      = "loki.source.file.log",
+            service  = "{{ log.service }}",
+        },
+    ]
+
+    file_match {
+        enabled = {{ log.file_match | default(puppeteers_grafana_alloy_loki_file_match_enabled_default) | lower }}
+        sync_period = "{{ log.sync_period | default(puppeteers_grafana_alloy_loki_file_match_sync_period_default)}}"
+        ignore_older_than = "{{ log.ignore_older_than | default(puppeteers_grafana_alloy_loki_file_match_ignore_older_than_default)}}"
+    }
+}
+{% endfor %}

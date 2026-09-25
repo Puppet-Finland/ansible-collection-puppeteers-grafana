@@ -1,0 +1,14 @@
+---
+- name: Validate Base Config
+  ansible.builtin.command: alloy validate "/etc/alloy/config.alloy"
+  changed_when: false
+
+- name: Validate Loki Config
+  ansible.builtin.command: alloy validate "{{ puppeteers_grafana_alloy_confd }}/loki.alloy"
+  changed_when: false
+
+- name: Restart Alloy
+  ansible.builtin.systemd:
+    name: alloy
+    state: restarted
+  become: yes

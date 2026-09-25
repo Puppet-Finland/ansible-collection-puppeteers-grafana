@@ -1,0 +1,8 @@
+logging {
+  format = "logfmt"
+  level  = "info"
+}
+
+import.file "confd" {
+  filename = "/etc/alloy/conf.d"
+}

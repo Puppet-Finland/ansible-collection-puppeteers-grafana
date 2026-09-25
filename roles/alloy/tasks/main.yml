@@ -1,0 +1,79 @@
+---
+- name: Assert Vars Exists
+  ansible.builtin.assert:
+    that:
+      - puppeteers_grafana_alloy_confd is defined
+      - puppeteers_grafana_alloy_confd is string
+      - puppeteers_grafana_alloy_loki_environment_extra_labels is defined
+      - puppeteers_grafana_alloy_loki_logs is defined
+      - puppeteers_grafana_alloy_loki_endpoint_url is defined
+      - puppeteers_grafana_alloy_loki_endpoint_url is string
+
+- name: Include Grafana.Grafana.Alloy Role
+  ansible.builtin.import_role:
+    name: grafana.grafana.alloy
+  vars:
+    alloy_config: |
+      logging {
+        format = "logfmt"
+        level  = "info"
+      }
+
+- name: Ensure "{{ puppeteers_grafana_alloy_confd }}" Exists
+  ansible.builtin.file:
+    path: "{{ puppeteers_grafana_alloy_confd }}"
+    state: directory
+    mode: 0770
+    owner: root
+    group: alloy
+
+- name: Ensure loki config exists
+  ansible.builtin.template:
+    src: loki.alloy.j2
+    dest: "{{ puppeteers_grafana_alloy_confd }}/loki.alloy"
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Validate Loki Config
+    - Restart Alloy
+
+- name: Ensure base config
+  ansible.builtin.template:
+    src: config.alloy.j2
+    dest: /etc/alloy/config.alloy
+    owner: root
+    group: root
+    mode: "0644"
+  notify:
+    - Validate Base Config
+    - Restart Alloy
+
+- name: Ensure Package acl is installed
+  ansible.builtin.package:
+    name: acl
+    state: present
+
+- name: Allow Alloy user to enter log directories
+  ansible.posix.acl:
+    path: "{{ item.log_dir }}"
+    entity: alloy
+    permissions: rx
+    etype: user
+    default: true
+    state: present
+  loop: "{{ puppeteers_grafana_alloy_loki_logs }}"
+  loop_control:
+    label: "{{ item.service }}"
+
+- name: New files inherit read permission for Alloy user
+  ansible.posix.acl:
+    path: "{{ item.log_dir }}"
+    entity: alloy
+    etype: user
+    permissions: r
+    recursive: true
+    state: present
+  loop: "{{ puppeteers_grafana_alloy_loki_logs }}"
+  loop_control:
+    label: "{{ item.service }}"
